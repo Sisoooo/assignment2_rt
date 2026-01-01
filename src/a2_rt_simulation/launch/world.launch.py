@@ -13,7 +13,7 @@ def generate_launch_description():
         description='Name of the Gazebo world file to load'
     )
 
-    pkg_assignment2_rt = get_package_share_directory('assignment2_rt')
+    pkg_a2_rt_simulation = get_package_share_directory('a2_rt_simulation')
     pkg_ros_gz_sim = get_package_share_directory('ros_gz_sim')
 
 
@@ -22,7 +22,7 @@ def generate_launch_description():
             os.path.join(pkg_ros_gz_sim, 'launch', 'gz_sim.launch.py'),
         ),
         launch_arguments={'gz_args': [PathJoinSubstitution([
-            pkg_assignment2_rt,
+            pkg_a2_rt_simulation,
             'worlds',
             LaunchConfiguration('world')
         ]),
