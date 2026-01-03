@@ -23,6 +23,7 @@ class RobotController(Node):
         self.user_angular_z = 0.0
         self.duration = 0.0
         self.reversing = False
+        self.already_reversed = False
 
     def cmd_vel_callback(self, msg):
         # Update user velocity only if not reversing
@@ -31,15 +32,22 @@ class RobotController(Node):
             self.user_angular_z = msg.angular.z
 
     def time_callback(self, msg):
+        if msg.data < self.duration:
+            self.already_reversed = False
         self.duration = msg.data
 
     def scan_callback(self, msg):
         # Filter out invalid readings (inf, nan)
         valid_ranges = [r for r in msg.ranges if r > msg.range_min and r < msg.range_max]
         obstacle_detected = False
+
+        go_flag = Bool()
+        go_flag.data = obstacle_detected
+        self.obstacle_publisher_.publish(go_flag)
+
         if valid_ranges:
             min_distance = min(valid_ranges)
-            if min_distance < 1.0 and not self.reversing:
+            if min_distance <= 0.5 and not self.reversing and not self.already_reversed:
                 obstacle_detected = True
 
                 stop_flag = Bool()
@@ -48,6 +56,7 @@ class RobotController(Node):
                 
                 self.get_logger().info(f'Obstacle detected at {min_distance:.2f}m. Reversing...')
                 self.reversing = True
+                self.already_reversed = True
                 
                 reverse_msg = Twist()
                 reverse_msg.linear.x = -self.user_linear_x
