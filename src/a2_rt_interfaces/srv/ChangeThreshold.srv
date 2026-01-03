@@ -1,0 +1,4 @@
+bool decision
+float32 new_threshold
+---
+string result

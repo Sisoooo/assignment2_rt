@@ -4,6 +4,7 @@ from geometry_msgs.msg import Twist
 from sensor_msgs.msg import LaserScan
 from std_msgs.msg import Bool, Float32
 from a2_rt_interfaces.msg import ClosestObstInfo
+from a2_rt_interfaces.srv import ChangeThreshold, AverageVelocities
 import time
 
 class RobotController(Node):
@@ -14,6 +15,9 @@ class RobotController(Node):
         self.publisher_ = self.create_publisher(Twist, '/cmd_vel', 10)
         self.obstacle_publisher_ = self.create_publisher(Bool, '/obstacle_detected', 10)
         self.custom_obstacle_publisher_ = self.create_publisher(ClosestObstInfo, '/custom_obstacle', 10)
+        
+        self.srv = self.create_service(ChangeThreshold, 'change_threshold', self.change_threshold_callback)
+        self.avg_vel_srv = self.create_service(AverageVelocities, 'average_velocities', self.average_velocities_callback)
 
         self.sensor_subscription_ = self.create_subscription(LaserScan, '/scan', self.scan_callback, 10)
         self.cmd_vel_subscription_ = self.create_subscription(Twist, '/cmd_vel', self.cmd_vel_callback, 10)
@@ -28,12 +32,48 @@ class RobotController(Node):
         self.already_reversed = False
         self.threshold_distance = 0.5
         self.last_print_time = 0.0
+        self.vel_history = []
+        self.receiving_input = False
+
+    def change_threshold_callback(self, request, response):
+        if request.decision:
+            self.threshold_distance = request.new_threshold
+            response.result = f'Threshold updated to {self.threshold_distance}'
+            self.get_logger().info(response.result)
+        else:
+            response.result = 'Threshold change rejected by user request.'
+        return response
+
+    def average_velocities_callback(self, request, response):
+        if not self.vel_history:
+            response.avg_linear_x = 0.0
+            response.avg_angular_z = 0.0
+        else:
+            # Calculate average of last 5 elements (or fewer if not enough)
+            recent_vels = self.vel_history[-5:]
+            avg_x = sum(v[0] for v in recent_vels) / len(recent_vels)
+            avg_z = sum(v[1] for v in recent_vels) / len(recent_vels)
+            response.avg_linear_x = float(avg_x)
+            response.avg_angular_z = float(avg_z)
+        return response
 
     def cmd_vel_callback(self, msg):
         # Update user velocity only if not reversing
         if not self.reversing:
             self.user_linear_x = msg.linear.x
             self.user_angular_z = msg.angular.z
+            
+            # Logic to capture unique inputs (bursts of non-zero velocity)
+            is_moving = (msg.linear.x != 0.0 or msg.angular.z != 0.0)
+            
+            if is_moving and not self.receiving_input:
+                self.vel_history.append((msg.linear.x, msg.angular.z))
+                self.receiving_input = True
+                # Optional: Keep list size manageable
+                if len(self.vel_history) > 100:
+                    self.vel_history.pop(0)
+            elif not is_moving:
+                self.receiving_input = False
 
     def time_callback(self, msg):
         if msg.data < self.duration:
