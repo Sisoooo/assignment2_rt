@@ -29,6 +29,7 @@ setup(
         'console_scripts': [
             'robot_controller = a2_rt_controller.robot_controller:main',
             'terminal_interface = a2_rt_controller.terminal_interface:main',
+            'custom_msg_subscriber = a2_rt_controller.custom_msg_subscriber:main',
         ],
     },
 )

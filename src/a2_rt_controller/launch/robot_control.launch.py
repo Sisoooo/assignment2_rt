@@ -16,4 +16,11 @@ def generate_launch_description():
             output='screen',
             prefix='xterm -e',
         ),
+        Node(
+            package='a2_rt_controller',
+            executable='custom_msg_subscriber',
+            name='custom_msg_subscriber',
+            output='screen',
+            prefix='xterm -e',
+        ),
     ])
