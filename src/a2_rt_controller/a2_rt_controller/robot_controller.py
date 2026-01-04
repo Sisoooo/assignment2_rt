@@ -30,6 +30,8 @@ class RobotController(Node):
         self.duration = 0.0
         self.reversing = False
         self.already_reversed = False
+        self.last_reversal_time = 0.0
+        self.reversal_cooldown = 1.0  # seconds before allowing another reversal
         self.threshold_distance = 0.5
         self.last_print_time = 0.0
         self.vel_history = []
@@ -59,9 +61,13 @@ class RobotController(Node):
 
     def cmd_vel_callback(self, msg):
         # Update user velocity only if not reversing
+        # Also only track forward motion to avoid reversing a backward command into the obstacle
         if not self.reversing:
-            self.user_linear_x = msg.linear.x
-            self.user_angular_z = msg.angular.z
+            # Only store velocity if robot is moving forward (or turning in place)
+            # This prevents storing user's backward commands which would reverse into forward
+            if msg.linear.x >= 0.0:
+                self.user_linear_x = msg.linear.x
+                self.user_angular_z = msg.angular.z
             
             # Logic to capture unique inputs (bursts of non-zero velocity)
             is_moving = (msg.linear.x != 0.0 or msg.angular.z != 0.0)
@@ -125,7 +131,22 @@ class RobotController(Node):
 
         if valid_ranges:
             min_distance = min(valid_ranges)
-            if min_distance <= self.threshold_distance and not self.reversing and not self.already_reversed:
+            current_time = time.time()
+            
+            # Reset already_reversed after cooldown period
+            if self.already_reversed and (current_time - self.last_reversal_time) > self.reversal_cooldown:
+                self.already_reversed = False
+            
+            # Only trigger obstacle avoidance if:
+            # 1. Close to threshold
+            # 2. Not currently reversing
+            # 3. Haven't just reversed (cooldown)
+            # 4. Robot is actually moving forward (user_linear_x > 0)
+            if (min_distance <= (self.threshold_distance + 0.1) and 
+                not self.reversing and 
+                not self.already_reversed and
+                self.user_linear_x > 0.0):
+                
                 obstacle_detected = True
 
                 stop_flag = Bool()
@@ -135,6 +156,7 @@ class RobotController(Node):
                 self.get_logger().info(f'Obstacle detected at {min_distance:.2f}m. Reversing...')
                 self.reversing = True
                 self.already_reversed = True
+                self.last_reversal_time = current_time
                 
                 reverse_msg = Twist()
                 reverse_msg.linear.x = -self.user_linear_x
