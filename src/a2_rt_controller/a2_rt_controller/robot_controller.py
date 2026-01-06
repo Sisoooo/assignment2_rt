@@ -2,9 +2,9 @@ import rclpy
 from rclpy.node import Node
 from geometry_msgs.msg import Twist
 from sensor_msgs.msg import LaserScan
-from std_msgs.msg import Bool, Float32
+from std_msgs.msg import Bool, Float32, String
 from a2_rt_interfaces.msg import ClosestObstInfo
-from a2_rt_interfaces.srv import ChangeThreshold, AverageVelocities
+from a2_rt_interfaces.srv import ChangeThreshold, AverageVelocities, FixedPoint
 import time
 
 class RobotController(Node):
@@ -15,9 +15,11 @@ class RobotController(Node):
         self.publisher_ = self.create_publisher(Twist, '/cmd_vel', 10)
         self.obstacle_publisher_ = self.create_publisher(Bool, '/obstacle_detected', 10)
         self.custom_obstacle_publisher_ = self.create_publisher(ClosestObstInfo, '/custom_obstacle', 10)
+        self.fixed_point_publisher_ = self.create_publisher(Pose, '/fixed_point', 10)
         
         self.srv = self.create_service(ChangeThreshold, 'change_threshold', self.change_threshold_callback)
         self.avg_vel_srv = self.create_service(AverageVelocities, 'average_velocities', self.average_velocities_callback)
+        self.fix_srv = self.create_service(FixedPoint, 'fix_point', self.fixed_point_callback)
 
         self.sensor_subscription_ = self.create_subscription(LaserScan, '/scan', self.scan_callback, 10)
         self.cmd_vel_subscription_ = self.create_subscription(Twist, '/cmd_vel', self.cmd_vel_callback, 10)
@@ -36,6 +38,7 @@ class RobotController(Node):
         self.last_print_time = 0.0
         self.vel_history = []
         self.receiving_input = False
+        self.fixed_point = (10.0, 10.0) 
 
     def change_threshold_callback(self, request, response):
         if request.decision:
@@ -57,6 +60,18 @@ class RobotController(Node):
             avg_z = sum(v[1] for v in recent_vels) / len(recent_vels)
             response.avg_linear_x = float(avg_x)
             response.avg_angular_z = float(avg_z)
+        return response
+    
+    def fixed_point_callback(self, request, response):
+        if request.decision:
+            self.fixed_point = (request.x, request.y)
+            message = String()
+            message.data = f'New fixed point:{self.fixed_point[0]},{self.fixed_point[1]}'
+            self.fixed_point_publisher_.publish(message)
+            response.result = f'Fixed point updated to ({self.fixed_point[0]}, {self.fixed_point[1]})'
+            self.get_logger().info(response.result)
+        else:
+            response.result = 'Fixed point change rejected by user request.'
         return response
 
     def cmd_vel_callback(self, msg):
