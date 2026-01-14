@@ -12,15 +12,15 @@ class RobotController(Node):
     def __init__(self):
 
         super().__init__('robot_controller')
-        self.publisher_ = self.create_publisher(Twist, '/cmd_vel', 10)
+        self.publisher_ = self.create_publisher(Twist, '/robot_vel', 10)
         self.obstacle_publisher_ = self.create_publisher(Bool, '/obstacle_detected', 10)
         self.custom_obstacle_publisher_ = self.create_publisher(ClosestObstInfo, '/custom_obstacle', 10)
         
         self.srv = self.create_service(ChangeThreshold, 'change_threshold', self.change_threshold_callback)
         self.avg_vel_srv = self.create_service(AverageVelocities, 'average_velocities', self.average_velocities_callback)
 
-        self.sensor_subscription_ = self.create_subscription(LaserScan, '/scan', self.scan_callback, 10)
-        self.cmd_vel_subscription_ = self.create_subscription(Twist, '/cmd_vel', self.cmd_vel_callback, 10)
+        self.sensor_subscription_ = self.create_subscription(LaserScan, '/laser_scan', self.scan_callback, 10)
+        self.cmd_vel_subscription_ = self.create_subscription(Twist, '/robot_vel', self.cmd_vel_callback, 10)
         self.time_subscription_ = self.create_subscription(Float32, '/time_topic', self.time_callback, 10)
         
         self.get_logger().info('Robot Controller Node has been started.')

@@ -9,7 +9,7 @@ public:
   {
     client_ = this->create_client<a2_rt_interfaces::srv::AverageVelocities>("average_velocities");
     subscription_ = this->create_subscription<geometry_msgs::msg::Twist>(
-      "/cmd_vel", 10, std::bind(&AvgVelServiceClient::topic_callback, this, std::placeholders::_1));
+      "/robot_vel", 10, std::bind(&AvgVelServiceClient::topic_callback, this, std::placeholders::_1));
     
     RCLCPP_INFO(this->get_logger(), "AvgVelServiceClient started. Waiting for inputs...");
   }

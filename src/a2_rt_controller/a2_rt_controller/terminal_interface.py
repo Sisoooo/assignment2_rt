@@ -8,7 +8,7 @@ import time
 class TerminalInterface(Node):
     def __init__(self):
         super().__init__('text_interface')
-        self.publisher_ = self.create_publisher(Twist, '/cmd_vel', 10)
+        self.publisher_ = self.create_publisher(Twist, '/robot_vel', 10)
         self.time_publisher_ = self.create_publisher(Float32, '/time_topic', 10)
 
         self.subscription = self.create_subscription(Bool, '/obstacle_detected', self.obstacle_callback, 10)
